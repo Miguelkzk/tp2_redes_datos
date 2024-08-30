@@ -1,11 +1,11 @@
-# receptor.rb
-require 'socket'
-
+require 'socket' #socket es una libreria para usar facilitar el uso de los puertos
 # Configuración del socket
 puerto = '/dev/pts/4'  # Puerto virtual asignado por socat para el receptor
-receptor_socket = File.open(puerto, 'r')
+receptor_socket = File.open(puerto, 'r') # la r indica que es de lectura
 
 # Esperar y procesar mensajes continuamente
+#begin es una especie de try catch en otros lenguajes
+# se hace un bucle infinito para que el receptor se mantenga 'atento' esperando mensajes
 begin
   while true
     marco = receptor_socket.gets.chomp
