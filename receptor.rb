@@ -4,7 +4,7 @@ puerto = '/dev/pts/4'  # Puerto virtual asignado por socat para el receptor
 receptor_socket = File.open(puerto, 'r') # la r indica que es de lectura
 
 # Esperar y procesar mensajes continuamente
-#begin es una especie de try catch en otros lenguajes
+# begin es una especie de try catch finally en otros lenguajes
 # se hace un bucle infinito para que el receptor se mantenga 'atento' esperando mensajes
 begin
   while true

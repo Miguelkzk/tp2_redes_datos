@@ -12,10 +12,13 @@ begin
   while true
     # Solicitar al usuario que ingrese el mensaje
     print "Introduce el mensaje a transmitir (Ctrl+C para salir): "
-    mensaje = gets.chomp
+    mensaje = gets.chomp #se crea una variable y se almacena el contenido que ingresa el usuario
 
     # Crear el marco con el mensaje
-    marco = "MARCO:#{mensaje}:CHECKSUM"
+    marco = "MARCO:#{mensaje}:CHECKUM"
+
+    #Marco: Unidad de datos con delimitadores y control adicional para la transmisión.
+    #CHECKSUM: Valor de verificación para asegurar la integridad de los datos.
 
     # Enviar el marco
     puts "Enviando marco: #{marco}"
