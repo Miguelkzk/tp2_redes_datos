@@ -7,4 +7,5 @@
 * Santino Giovannini
 * Lucio Malgioglio
 * Luciana Maldonado
+* Juan Fransisco Vazquez 
 ###
