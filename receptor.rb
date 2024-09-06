@@ -1,30 +1,42 @@
-require 'socket' #socket es una libreria para usar facilitar el uso de los puertos
+require 'socket'
+
+def calcular_checksum(data)
+  data.bytes.reduce(0) { |sum, byte| sum + byte } % 256
+end
+
 # Configuración del socket
 puerto = '/dev/pts/4'  # Puerto virtual asignado por socat para el receptor
-receptor_socket = File.open(puerto, 'r') # la r indica que es de lectura
+receptor_socket = File.open(puerto, 'r')
+
+# Forzar la codificación a ASCII-8BIT para manejar cualquier secuencia de bytes
+receptor_socket.set_encoding('ASCII-8BIT')
 
 # Esperar y procesar mensajes continuamente
-# begin es una especie de try catch finally en otros lenguajes
-# se hace un bucle infinito para que el receptor se mantenga 'atento' esperando mensajes
 begin
   while true
-    marco = receptor_socket.gets.chomp
-    if marco.empty?
-      # Si no hay datos disponibles, esperar un poco antes de volver a intentarlo
+    marco = receptor_socket.gets&.chomp
+    if marco.nil? || marco.empty?
       sleep(0.1)
     else
       puts "Marco recibido: #{marco}"
 
-      # Verificar el marco (simplificación)
-      if marco.include?("CHECKSUM")
-        puts "Marco recibido correctamente"
+      if marco =~ /MARCO:(.*):(\d+)/
+        datos = $1
+        checksum_recibido = $2.to_i
+        checksum_calculado = calcular_checksum(datos)
+
+        # Verificar el checksum
+        if checksum_calculado == checksum_recibido
+          puts "Marco recibido correctamente: #{datos}"
+        else
+          puts "Error detectado: checksum no coincide"
+        end
       else
-        puts "Marco corrupto"
+        puts "Formato de marco inválido"
       end
     end
   end
 rescue Interrupt
-  # Permitir detener el script con Ctrl+C
   puts "\nInterrupción detectada. Cerrando el receptor."
 ensure
   receptor_socket.close
