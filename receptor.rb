@@ -1,18 +1,21 @@
 require 'socket'
-# pensar si se pierde el ack, ver el codigo de verificacion y ver de quien emisor es
+
 def calcular_checksum(data)
   data.bytes.reduce(0) { |sum, byte| sum + byte } % 256
 end
 
 # Configuración del socket
-puerto = '/dev/pts/3'  # Puerto para recibir el mensaje
-ack_puerto = '/dev/pts/2'  # Puerto para enviar el ACK
+puerto = '/dev/pts/4'  # Puerto para recibir el mensaje
+ack_puerto = '/dev/pts/3'  # Puerto para enviar el ACK
 
 receptor_socket = File.open(puerto, 'r')
 ack_socket = File.open(ack_puerto, 'w')
 
 # Forzar la codificación a ASCII-8BIT para manejar cualquier secuencia de bytes
 receptor_socket.set_encoding('ASCII-8BIT')
+
+# Variable para el número de secuencia esperado
+numero_secuencia_esperado = 0
 
 # Esperar y procesar mensajes continuamente
 begin
@@ -26,19 +29,23 @@ begin
 
       puts "Marco recibido: #{marco}"
 
-      if marco =~ /MARCO:(.*):(\d+)/   # comparo el marco con una expresion regular y lo divido en 2 partes
-        datos = $1   #Se almacena el mensaje
-        checksum_recibido = $2.to_i   # se almacena la la suma de verificacion
+      if marco =~ /MARCO:(\d+):(.*):(\d+)/   # comparo el marco con una expresion regular
+        numero_secuencia = $1.to_i   # Se almacena el número de secuencia
+        datos = $2   # Se almacena el mensaje
+        checksum_recibido = $3.to_i   # Se almacena la suma de verificación
         checksum_calculado = calcular_checksum(datos)
 
         # Verificar el checksum
-        if checksum_calculado == checksum_recibido
-          puts "Marco recibido correctamente: #{datos}"
-          ack_socket.puts "ACK"
+        if checksum_calculado == checksum_recibido && numero_secuencia == numero_secuencia_esperado
+          puts "Marco recibido correctamente: #{datos} (Secuencia: #{numero_secuencia})"
+          ack_socket.puts "ACK:#{numero_secuencia}"
           ack_socket.flush
           puts "ACK enviado"
+
+          # Incrementar el número de secuencia esperado
+          numero_secuencia_esperado = (numero_secuencia_esperado + 1) % 256
         else
-          puts "Error detectado: checksum no coincide"
+          puts "Error detectado: checksum o número de secuencia no coincide"
         end
       else
         puts "Formato de marco inválido"
