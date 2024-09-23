@@ -1,13 +1,10 @@
 require 'socket'
 require 'timeout'
+require_relative 'crc'  # Cargar el archivo crc.rb
 
-# Explicación de la suma de verificación
-def calcular_checksum(data)
-  data.bytes.reduce(0) { |sum, byte| sum + byte } % 256
-end
-
+# Introducción de errores aleatorios
 def errors(mensaje)
-  return mensaje if rand > 0.20 # Probabilidad de que el mensaje no tenga errores (80% de éxito)
+  return mensaje if rand > 0 # Probabilidad de que el mensaje no tenga errores (80% de éxito)
   bytes = mensaje.bytes
   bytes[rand(bytes.length)] ^= 0xFF # Se corrompe un byte aleatorio
   bytes.pack('C*') # Reconstituye el mensaje
@@ -23,6 +20,9 @@ ack_socket = File.open(ack_puerto, 'r')
 # Inicialización del número de secuencia
 numero_secuencia = 0
 
+# Configuración del polinomio generador
+generador = '10011'
+
 # Bucle infinito para enviar mensajes
 begin
   while true
@@ -30,13 +30,16 @@ begin
     mensaje = gets.chomp
 
     # Validar la longitud del mensaje
-    if mensaje.length > 2
-      puts "Error: El mensaje no puede tener más de 2 caracteres."
+    unless mensaje.match?(/^[01]+$/)
+      puts "Error: El mensaje debe consistir en bits (0 o 1)."
       next
     end
 
-    checksum = calcular_checksum(mensaje)
-    marco = "MARCO:#{numero_secuencia}:#{mensaje}:#{checksum}"
+    # Calcular el CRC y obtener la trama con la suma de verificación
+    trama_con_crc = calcular_crc(mensaje, generador)
+    puts "Trama con CRC: #{trama_con_crc}"
+
+    marco = "MARCO:#{numero_secuencia}:#{mensaje}:#{trama_con_crc}"
 
     ack_recibido = false # Para controlar si se recibe el ACK
 
@@ -52,11 +55,13 @@ begin
       # Esperar el ACK con un temporizador
       Timeout::timeout(2) do
         ack = ack_socket.gets&.chomp # Leer el ACK
+        puts "ACK recibido: #{ack}"
+
         if ack == "ACK:#{numero_secuencia}"
-          puts "ACK recibido, transmisión exitosa."
+          puts "ACK recibido correctamente para secuencia #{numero_secuencia}. Transmisión exitosa."
           ack_recibido = true
         else
-          puts "ACK incorrecto, retransmitiendo..."
+          puts "Número de secuencia en ACK no coincide. Retransmitiendo..."
         end
       end
     rescue Timeout::Error
@@ -68,7 +73,6 @@ begin
 
   end
 rescue Interrupt
-  # Permitir detener el script con Ctrl+C
   puts "\nInterrupción detectada. Cerrando el emisor."
 ensure
   emisor_socket.close

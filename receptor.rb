@@ -1,8 +1,5 @@
 require 'socket'
-
-def calcular_checksum(data)
-  data.bytes.reduce(0) { |sum, byte| sum + byte } % 256
-end
+require_relative 'crc'  # Cargar el archivo crc.rb
 
 # Configuración del socket
 puerto = '/dev/pts/4'  # Puerto para recibir el mensaje
@@ -10,6 +7,7 @@ ack_puerto = '/dev/pts/3'  # Puerto para enviar el ACK
 
 receptor_socket = File.open(puerto, 'r')
 ack_socket = File.open(ack_puerto, 'w')
+generador = '10011'
 
 # Forzar la codificación a ASCII-8BIT para manejar cualquier secuencia de bytes
 receptor_socket.set_encoding('ASCII-8BIT')
@@ -24,28 +22,35 @@ begin
     if marco.nil? || marco.empty?
       sleep(0.1)
     else
-      # Ignorar los mensajes de ACK
-      next if marco == "ACK"
-
       puts "Marco recibido: #{marco}"
 
-      if marco =~ /MARCO:(\d+):(.*):(\d+)/   # comparo el marco con una expresion regular
-        numero_secuencia = $1.to_i   # Se almacena el número de secuencia
-        datos = $2   # Se almacena el mensaje
-        checksum_recibido = $3.to_i   # Se almacena la suma de verificación
-        checksum_calculado = calcular_checksum(datos)
+      if marco =~ /MARCO:(\d+):(.*):(\d+)/
+        numero_secuencia = $1.to_i
+        datos = $2
+        crc_recibido = $3
+      
+        puts "Datos recibidos: #{datos}, CRC recibido: #{crc_recibido}"
+      
+        # Crear la trama para verificar el CRC
+        trama_para_verificar = datos + crc_recibido
+        puts "Verificando trama: #{trama_para_verificar}"
+      
+        # Calcular y verificar CRC
+        crc_calculado = verificar_crc(trama_para_verificar, generador)
+        puts "CRC calculado: #{crc_calculado}"
 
-        # Verificar el checksum
-        if checksum_calculado == checksum_recibido && numero_secuencia == numero_secuencia_esperado
-          puts "Marco recibido correctamente: #{datos} (Secuencia: #{numero_secuencia})"
-          ack_socket.puts "ACK:#{numero_secuencia}"
-          ack_socket.flush
-          puts "ACK enviado"
-
-          # Incrementar el número de secuencia esperado
-          numero_secuencia_esperado = (numero_secuencia_esperado + 1) % 256
+        if verificar_crc(trama_para_verificar, generador)
+          
+          if numero_secuencia == numero_secuencia_esperado
+            puts "Trama recibida correctamente: #{datos} (Secuencia: #{numero_secuencia})"
+            ack_socket.puts "ACK:#{numero_secuencia}"
+            ack_socket.flush
+            numero_secuencia_esperado = (numero_secuencia_esperado + 1) % 256
+          else
+            puts "Número de secuencia incorrecto. Esperado: #{numero_secuencia_esperado}, Recibido: #{numero_secuencia}"
+          end
         else
-          puts "Error detectado: checksum o número de secuencia no coincide"
+          puts "Error detectado: CRC no coincide"
         end
       else
         puts "Formato de marco inválido"
