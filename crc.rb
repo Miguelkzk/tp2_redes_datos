@@ -31,6 +31,6 @@ end
 # Función para verificar el CRC en el receptor
 def verificar_crc(trama_con_crc, generador)
   residuo = division_modulo_2(trama_con_crc, generador)
-  puts "Residuo después de verificar CRC: #{residuo}"  # Depuración
+  puts ("residuo calculado: #{residuo}")
   residuo == '0' * (generador.length - 1)  # Verificar si el residuo es cero
 end

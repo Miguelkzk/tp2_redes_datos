@@ -11,8 +11,8 @@ def errors(mensaje)
 end
 
 # Configuración del socket
-puerto = '/dev/pts/3'  # Puerto para el emisor
-ack_puerto = '/dev/pts/4'  # Puerto para recibir el ACK
+puerto = '/dev/pts/1'  # Puerto para el emisor
+ack_puerto = '/dev/pts/2'  # Puerto para recibir el ACK
 
 emisor_socket = File.open(puerto, 'w')
 ack_socket = File.open(ack_puerto, 'r')
@@ -21,12 +21,12 @@ ack_socket = File.open(ack_puerto, 'r')
 numero_secuencia = 0
 
 # Configuración del polinomio generador
-generador = '10011'
-
+generador = '10011'  # x^4 + x + 1.
+Flag = 01111110
 # Bucle infinito para enviar mensajes
 begin
   while true
-    print "Introduce el mensaje a transmitir (Ctrl+C para salir, máx. 2 caracteres): "
+    print "Introduce la trama a transmitir en binario (Ctrl+C para salir): "
     mensaje = gets.chomp
 
     # Validar la longitud del mensaje
@@ -36,10 +36,9 @@ begin
     end
 
     # Calcular el CRC y obtener la trama con la suma de verificación
-    trama_con_crc = calcular_crc(mensaje, generador)
-    puts "Trama con CRC: #{trama_con_crc}"
+    crc = calcular_crc(mensaje, generador)
 
-    marco = "MARCO:#{numero_secuencia}:#{mensaje}:#{trama_con_crc}"
+    marco = "MARCO:#{numero_secuencia}:#{mensaje}:#{crc}"
 
     ack_recibido = false # Para controlar si se recibe el ACK
 
@@ -55,7 +54,6 @@ begin
       # Esperar el ACK con un temporizador
       Timeout::timeout(2) do
         ack = ack_socket.gets&.chomp # Leer el ACK
-        puts "ACK recibido: #{ack}"
 
         if ack == "ACK:#{numero_secuencia}"
           puts "ACK recibido correctamente para secuencia #{numero_secuencia}. Transmisión exitosa."

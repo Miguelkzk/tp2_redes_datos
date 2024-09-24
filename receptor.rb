@@ -2,13 +2,13 @@ require 'socket'
 require_relative 'crc'  # Cargar el archivo crc.rb
 
 # Configuración del socket
-puerto = '/dev/pts/4'  # Puerto para recibir el mensaje
-ack_puerto = '/dev/pts/3'  # Puerto para enviar el ACK
+puerto = '/dev/pts/2'  # Puerto para recibir el mensaje
+ack_puerto = '/dev/pts/1'  # Puerto para enviar el ACK
 
 receptor_socket = File.open(puerto, 'r')
 ack_socket = File.open(ack_puerto, 'w')
 generador = '10011'
-
+Flag = 01111110
 # Forzar la codificación a ASCII-8BIT para manejar cualquier secuencia de bytes
 receptor_socket.set_encoding('ASCII-8BIT')
 
@@ -28,19 +28,15 @@ begin
         numero_secuencia = $1.to_i
         datos = $2
         crc_recibido = $3
-      
-        puts "Datos recibidos: #{datos}, CRC recibido: #{crc_recibido}"
-      
+
+
         # Crear la trama para verificar el CRC
         trama_para_verificar = datos + crc_recibido
-        puts "Verificando trama: #{trama_para_verificar}"
-      
+
         # Calcular y verificar CRC
-        crc_calculado = verificar_crc(trama_para_verificar, generador)
-        puts "CRC calculado: #{crc_calculado}"
 
         if verificar_crc(trama_para_verificar, generador)
-          
+
           if numero_secuencia == numero_secuencia_esperado
             puts "Trama recibida correctamente: #{datos} (Secuencia: #{numero_secuencia})"
             ack_socket.puts "ACK:#{numero_secuencia}"
