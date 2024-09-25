@@ -2,18 +2,49 @@ require 'socket'
 require_relative 'crc'  # Cargar el archivo crc.rb
 
 # Configuración del socket
-puerto = '/dev/pts/2'  # Puerto para recibir el mensaje
-ack_puerto = '/dev/pts/1'  # Puerto para enviar el ACK
+puerto = '/dev/pts/4'  # Puerto para recibir el mensaje
+ack_puerto = '/dev/pts/3'  # Puerto para enviar el ACK
 
 receptor_socket = File.open(puerto, 'r')
 ack_socket = File.open(ack_puerto, 'w')
 generador = '10011'
 Flag = 01111110
+
 # Forzar la codificación a ASCII-8BIT para manejar cualquier secuencia de bytes
 receptor_socket.set_encoding('ASCII-8BIT')
 
 # Variable para el número de secuencia esperado
 numero_secuencia_esperado = 0
+
+def quitar_banderas(mensaje)
+  # Buscar la primera y la ultima aparicion de la bandera
+  inicio = mensaje.index(Flag)
+  fin = mensaje.rindex(Flag)
+  if inicio && fin && inicio != fin
+    return mensaje[inicio + Flag.length...fin] #retorna el marco sin banderas
+  end
+  nil # si no se encuentran banderas retorna vacio
+end
+
+def quitar_relleno(mensaje)
+  contador = 0
+  mensaje_sin_relleno = ''
+  i = 0
+  while i < mensaje.length
+    mensaje_sin_relleno += mensaje[i]
+    if mensaje[i] == '1'
+      contador += 1
+      if contador == 5
+        i += 1 # salta el bit de relleno
+        contador = 0
+      end
+    else
+      contador = 0
+    end
+    i += 1
+  end
+  mensaje_sin_relleno
+end
 
 # Esperar y procesar mensajes continuamente
 begin
