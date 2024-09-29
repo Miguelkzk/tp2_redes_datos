@@ -1,5 +1,6 @@
 require 'socket'
 require_relative 'crc'  # Cargar el archivo crc.rb
+require_relative 'formato.rb'
 
 # Configuración del socket
 puerto = '/dev/pts/4'  # Puerto para recibir el mensaje
@@ -8,43 +9,16 @@ ack_puerto = '/dev/pts/3'  # Puerto para enviar el ACK
 receptor_socket = File.open(puerto, 'r')
 ack_socket = File.open(ack_puerto, 'w')
 generador = '10011'
-Flag = 01111110
+Flag = '01111110'
 
-# Forzar la codificación a ASCII-8BIT para manejar cualquier secuencia de bytes
+# Forzar la codificacion a ASCII-8BIT para manejar cualquier secuencia de bytes
 receptor_socket.set_encoding('ASCII-8BIT')
-
+generador = '10011'  # x^4 + x + 1.
 # Variable para el número de secuencia esperado
 numero_secuencia_esperado = 0
 
-def quitar_banderas(mensaje)
-  # Buscar la primera y la ultima aparicion de la bandera
-  inicio = mensaje.index(Flag)
-  fin = mensaje.rindex(Flag)
-  if inicio && fin && inicio != fin
-    return mensaje[inicio + Flag.length...fin] #retorna el marco sin banderas
-  end
-  nil # si no se encuentran banderas retorna vacio
-end
 
-def quitar_relleno(mensaje)
-  contador = 0
-  mensaje_sin_relleno = ''
-  i = 0
-  while i < mensaje.length
-    mensaje_sin_relleno += mensaje[i]
-    if mensaje[i] == '1'
-      contador += 1
-      if contador == 5
-        i += 1 # salta el bit de relleno
-        contador = 0
-      end
-    else
-      contador = 0
-    end
-    i += 1
-  end
-  mensaje_sin_relleno
-end
+
 
 # Esperar y procesar mensajes continuamente
 begin
@@ -55,26 +29,43 @@ begin
     else
       puts "Marco recibido: #{marco}"
 
-      if marco =~ /MARCO:(\d+):(.*):(\d+)/
-        numero_secuencia = $1.to_i
-        datos = $2
-        crc_recibido = $3
+      # Quitar banderas
+      marco_sin_banderas = quitar_banderas(marco)
+      if marco_sin_banderas.nil?
+        puts "Formato de marco inválido, faltan banderas."
+        next
+      end
 
+      # Quitar bits de relleno
+      marco_sin_relleno = quitar_relleno(marco_sin_banderas)
+
+      # Verificar formato del marco
+      if marco_sin_relleno =~ /^(........)(........)(.*)(................)$/
+        direccion = $1
+        control = $2
+        datos = $3
+        crc_recibido = $4
+        puts "Control: #{control}"
+        puts "Datos: #{datos}"
+        puts "CRC: #{crc_recibido}"
 
         # Crear la trama para verificar el CRC
-        trama_para_verificar = datos + crc_recibido
-
+        trama_para_verificar = control + datos
+        crc_calculado = calcular_crc(trama_para_verificar, generador).rjust(16, '0')
+        puts("crc calculado: #{crc_calculado}")
         # Calcular y verificar CRC
-
-        if verificar_crc(trama_para_verificar, generador)
-
-          if numero_secuencia == numero_secuencia_esperado
-            puts "Trama recibida correctamente: #{datos} (Secuencia: #{numero_secuencia})"
-            ack_socket.puts "ACK:#{numero_secuencia}"
+        if crc_calculado == crc_recibido
+          if control == numero_secuencia_esperado.to_s(2).rjust(8, '0')
+            puts "Trama recibida correctamente: #{datos}"
+            crc = calcular_crc(control, generador).rjust(16, '0')
+            ack_enviar = control + crc
+            ack_formateado = "#{Flag}#{agregar_relleno(ack_enviar)}#{Flag}"
+            ack_socket.puts ack_formateado
             ack_socket.flush
+            puts "enviando trama ack: #{ack_formateado}"
             numero_secuencia_esperado = (numero_secuencia_esperado + 1) % 256
           else
-            puts "Número de secuencia incorrecto. Esperado: #{numero_secuencia_esperado}, Recibido: #{numero_secuencia}"
+            puts "Número de secuencia incorrecto. Esperado"
           end
         else
           puts "Error detectado: CRC no coincide"
