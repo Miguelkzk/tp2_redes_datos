@@ -5,8 +5,8 @@ def division_modulo_2(bits, generador)
   # Realizar la división binaria (XOR) hasta que el tamaño de bits sea menor que el generador
   while bits.length >= generador_length
     if bits[0] == '1'
-      (0...generador_length).each do |i|
-        bits[i] = (bits[i].to_i ^ generador[i].to_i).to_s  # XOR bit a bit
+      (0...generador_length).each do |i| # Recorrer el generador
+        bits[i] = (bits[i].to_i ^ generador[i].to_i).to_s  # Realizar la operación XOR a nivel de bits
       end
     end
     bits = bits[1..-1]  # Desplazar a la izquierda
@@ -17,8 +17,8 @@ end
 
 # Función para calcular el CRC
 def calcular_crc(trama, generador)
-  r = generador.length - 1  # Grado del polinomio generador
-  trama_con_zeros = trama + '0' * r  # Anexar r ceros
+  r = generador.length - 1  # Grado del generador
+  trama_con_zeros = trama + '0' * r  # Agregar ceros al final de la trama
 
   # Dividir la trama con los ceros entre el generador
   residuo = division_modulo_2(trama_con_zeros, generador)
